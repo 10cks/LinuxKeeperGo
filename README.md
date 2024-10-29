@@ -76,10 +76,17 @@ Usage:
   -h          Show this help message
 ```
 
-参考文章：
+## Current Modules
+
+[1] SSH Backdoor - Create SSH backdoor with custom port
+
+[2] Crontab Backdoor - Create persistent crontab backdoor
+
+
+## 参考文章：
 
 1. https://github.com/aplyc1a/blogs/tree/master/%E6%8C%81%E4%B9%85%E6%8E%A7%E5%88%B6/Linux
 
-参考项目：
+## 参考项目：
 
 1. https://github.com/RuoJi6/HackerPermKeeper
