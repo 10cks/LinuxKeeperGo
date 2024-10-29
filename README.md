@@ -14,7 +14,7 @@ Advanced Linux Persistence Tool written in Go.
 ```bash
 git clone https://github.com/10cks/LinuxKeeperGo
 cd LinuxKeeperGo
-go build ./cmd/main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o LinuxKeeperGo ./cmd/main.go
 ```
 
 ## Demo
