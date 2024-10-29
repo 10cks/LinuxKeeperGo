@@ -14,7 +14,7 @@ Advanced Linux Persistence Tool written in Go.
 ```bash
 git clone https://github.com/10cks/LinuxKeeperGo
 cd LinuxKeeperGo
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o LinuxKeeperGo ./cmd/main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -trimpath -ldflags '-w -s -extldflags "-static"' -o LinuxKeeperGo ./cmd/main.go
 ```
 
 ## Demo
@@ -78,9 +78,9 @@ Usage:
 
 ## Current Modules
 
-[1] SSH Backdoor - Create SSH backdoor with custom port
+[1] [root] SSH Backdoor - Create SSH backdoor with custom port
 
-[2] Crontab Backdoor - Create persistent crontab backdoor
+[2] [user/root] Crontab Backdoor - Create persistent crontab backdoor
 
 
 ## 参考文章：
