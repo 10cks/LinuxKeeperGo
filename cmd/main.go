@@ -94,7 +94,7 @@ func executeModule(moduleID int) error {
 	}
 
 	fmt.Printf("\n[+] Payload generated successfully!")
-	fmt.Printf("\n[+] Check the 'payloads' directory for your files\n")
+	fmt.Printf("\n[+] Check the 'payloads' directory for your files")
 	fmt.Printf("\n[+] Run '*_backdoor.sh' in 'payloads' directory\n")
 	return nil
 }

